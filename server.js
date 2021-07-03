@@ -17,7 +17,7 @@ const shroomSchema = new mongoose.Schema({
 const Shroom = mongoose.model('Shroom', shroomSchema);
 
 var app = express();
-const port = 4001;
+const port = process.env.PORT || 4001;
 
 app.use(express.static('public'));
 app.use(cors());
