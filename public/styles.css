@@ -17,6 +17,8 @@ body {
 
 #app {
 	color: white;
+	height: 95%;
+	width: 90vw;
 	max-height: 1200px;
 	max-width: 400px;
 }
@@ -99,7 +101,7 @@ h2 {
 	width: 6px;
 	border-radius: 35%;
 	position: relative;
-	left: 50%;
+	left: calc(50% - 3px);
 	bottom: 110px;
 	cursor: pointer;
 }
@@ -149,8 +151,10 @@ p {
 .invisible {display: none}
 .phantom {visibility: hidden}
 
+/*=== Up to 1020px width, take 95% screen width max ===
 @media only screen and (max-width: 1020px) {
 	#app {
 		max-width: 95%;
 	}
 }
+*/

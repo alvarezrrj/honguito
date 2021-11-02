@@ -2,12 +2,16 @@
 //NOTES
 //Ensure dates are in YYYY/MM/DD, Safari does not suport YYYY-MM-DD.
 //Remember months are 0-indexed in JavaScript
+
 //TO DO
-//Make led functional (add toggleHeater() method)
-//Store app.state in a single file as json instead of multiple files
-//store stage in a file
-//store name in a file
-//retreive all data on page load (component did mount?)
+//Fix handleName() (sends null to server after pressign 'cancel' on change name prompt)
+//Rewrite put pinning date on server side to make it update database
+//delete function to get LED status
+//Send heater state from ESP8266 to server
+//Write function in server.js to receive heater data from ESP8266 and send it to 
+//client via websocket
+//Make a favicon.ico
+//Review all fetches (some are written in weird ways)
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -17,10 +21,13 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var host = '192.168.0.35';
+var host = '192.168.1.236';
 var port = '4001';
 var startDate = new Date();
 var pinningDate;
+
+//Initialize websocket connection
+var socket = new WebSocket('ws://' + host + ':' + port);
 
 var stages = ["incubation", "pinning", "fruiting"];
 
@@ -69,19 +76,10 @@ var App = function (_React$Component) {
 		return _this;
 	}
 
-	//Retreive heater status every 2"
-
-
 	_createClass(App, [{
-		key: 'getLedStatus',
-		value: function getLedStatus() {
-			var _this2 = this;
-
-			fetch('http://' + host + ':' + port + '/get-led').then(function (response) {
-				return response.json();
-			}).then(function (data) {
-				return _this2.setState({ heater: data.state == 1 ? true : false });
-			});
+		key: 'age',
+		value: function age(v) {
+			return this.state[v] ? Math.floor((new Date() - new Date(this.state[v])) / 1000 / 3600 / 24) : "0";
 		}
 	}, {
 		key: 'handleName',
@@ -89,11 +87,7 @@ var App = function (_React$Component) {
 			var name = prompt('Do you want to rename your shrooms?');
 			name && this.setState({ name: name });
 			var encodedName = encodeURI(name);
-			fetch('http://' + host + ':' + port + '/store-name?name=' + encodedName, { method: 'PUT' }).then(function (response) {
-				return response.json();
-			}).then(function (data) {
-				return console.log('Name: ' + data.name + ' stored successfully');
-			}).catch(function (error) {
+			fetch('http://' + host + ':' + port + '/store-name?name=' + encodedName + '&id=' + this.state._id, { method: 'PUT' }).catch(function (error) {
 				return console.error(error);
 			});
 		}
@@ -101,25 +95,20 @@ var App = function (_React$Component) {
 		key: 'handleStart',
 		value: function handleStart() {
 			var today = dateFormatter(new Date());
-			var date = prompt('Select starting date (yyyy/mm/dd).', '' + today);
+			var date = prompt('Select starting date (yyyy/mm/dd).', today);
 			var re = /^\d{4}(\/)([1-9]|((0)[1-9])|((1)[0-2]))(\/)([1-9]|[0-2][1-9]|20|10|(3)[0-1])$/;
-			if (date == null) {
-				return;
+			//check date format
+			if (re.test(date)) {
+				date = new Date(date);
+				this.setState({ startDate: date }, function () {
+					this.putData();
+				});
 			}
-			if (date != today) {
-				//check date format
-				if (re.test(date)) {
-					date = dateFormatter(new Date(date));
+			//date is different than today but format not good
+			else {
+					alert('Invalid date.');
+					return;
 				}
-				//date is different than today but format not good
-				else {
-						alert('Invalid date.');
-						return;
-					}
-			}
-			//		this.putDate(host, port,'store-starting-date', date);
-			this.setState({ startDate: date });
-			this.putData();
 		}
 	}, {
 		key: 'handleNext',
@@ -175,42 +164,36 @@ var App = function (_React$Component) {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(this.state)
-			});
-		}
-	}, {
-		key: 'getDates',
-		value: function getDates() {
-			var _this3 = this;
-
-			fetch('http://' + host + ':' + port + '/start-date').then(function (response) {
-				return response.json();
-			}).then(function (data) {
-				startDate = data.startDate ? new Date(data.startDate) : null;
-				pinningDate = data.pinningDate ? new Date(data.pinningDate) : null;
-			}).then(function () {
-				_this3.setState({
-					startDate: startDate,
-					pinningDate: pinningDate });
-				return;
-			}).catch(function (error) {
-				alert('Something went wrong');console.error(error);
+			}).catch(function (e) {
+				return alert(e);
 			});
 		}
 	}, {
 		key: 'componentDidMount',
 		value: function componentDidMount() {
-			var _this4 = this;
+			var _this2 = this;
 
-			//Retrieve heater status every 2"
-			setInterval(function () {
-				return _this4.getLedStatus();
-			}, 2000);
-			this.getDates();
+			socket.onmessage = function (e) {
+				var data = JSON.parse(e.data);
+				if (data.heater) {
+					_this2.setState({ heater: Number(data.heater) == 1 });
+				} else if (data.temp) {
+					_this2.setState({ temperature: Number(data.temp.slice(0, 4)) }, function () {
+						chartData.setValue(0, 1, this.state.temperature);
+						chart.draw(chartData, chartOptions);
+					});
+				}
+			};
+			fetch('http://' + host + ':' + port + '/data').then(function (response) {
+				return response.json();
+			}).then(function (data) {
+				return _this2.setState(data);
+			});
 		}
 	}, {
 		key: 'render',
 		value: function render() {
-			var _this5 = this;
+			var _this3 = this;
 
 			return React.createElement(
 				'div',
@@ -220,7 +203,7 @@ var App = function (_React$Component) {
 					{
 						id: 'h00',
 						onClick: function onClick() {
-							return _this5.handleName();
+							return _this3.handleName();
 						} },
 					this.state.name
 				),
@@ -239,6 +222,7 @@ var App = function (_React$Component) {
 					React.createElement(
 						'h2',
 						null,
+						'Stage: ',
 						this.state.stage
 					),
 					React.createElement(
@@ -255,9 +239,9 @@ var App = function (_React$Component) {
 							React.createElement(
 								'p',
 								null,
-								this.state.startDate ? Math.floor((new Date() - this.state.startDate) / 1000 / 3600 / 24) : 0,
-								'day',
-								Math.floor((new Date() - this.state.startDate) / 1000 / 3600 / 24) != 1 ? "s" : ""
+								this.age('startDate'),
+								'\xA0day',
+								this.age('startDate') != 1 ? "s" : ""
 							)
 						),
 						React.createElement(
@@ -271,9 +255,9 @@ var App = function (_React$Component) {
 							React.createElement(
 								'p',
 								null,
-								this.state.pinningDate ? Math.floor((new Date() - this.state.pinningDate) / 1000 / 3600 / 24) : 0,
-								'day',
-								Math.floor((new Date() - this.state.pinningDate) / 1000 / 3600 / 24) != 1 ? "s" : ""
+								this.age('pinningDate'),
+								'\xA0day',
+								this.age('pinningDate') != 1 ? "s" : ""
 							)
 						)
 					),
@@ -287,7 +271,7 @@ var App = function (_React$Component) {
 						React.createElement(
 							'div',
 							{ onClick: function onClick() {
-									return _this5.handleStart();
+									return _this3.handleStart();
 								}, className: 'button', id: 'start-button' },
 							React.createElement(
 								'p',
@@ -298,7 +282,7 @@ var App = function (_React$Component) {
 						React.createElement(
 							'div',
 							{ onClick: function onClick() {
-									return _this5.handleNext();
+									return _this3.handleNext();
 								}, className: 'button', id: 'next-stage-button' },
 							React.createElement(
 								'p',
@@ -309,7 +293,7 @@ var App = function (_React$Component) {
 						React.createElement(
 							'div',
 							{ onClick: function onClick() {
-									return _this5.handleReset();
+									return _this3.handleReset();
 								}, className: 'button', id: 'reset-button' },
 							React.createElement(
 								'p',

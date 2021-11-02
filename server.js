@@ -1,4 +1,5 @@
 const express = require('express');
+const ws = require('ws');
 const cors = require('cors');
 const fs = require('fs');
 const bodyParser = require('body-parser');
@@ -14,8 +15,18 @@ const shroomSchema = new mongoose.Schema({
 	heater: Boolean,
 });
 
+//Databse config
 const Shroom = mongoose.model('Shroom', shroomSchema);
 
+var myDB = 'mongodb://localhost/shroomDB';
+
+mongoose.connect(myDB, {
+	useNewUrlParser: true,  
+	useUnifiedTopology: true 
+});
+
+
+//Server config
 var app = express();
 const port = process.env.PORT || 4001;
 
@@ -23,24 +34,19 @@ app.use(express.static('public'));
 app.use(cors());
 app.use(bodyParser.json());
 
+//Websocket config
+var expressWs = require('express-ws')(app);
 
-//PUT starting date request
-app.put('/store-starting-date', (req, res, next) => {
-	let date = `${req.query.year}/${req.query.month}/${req.query.day}`;
-	exec(`echo ${date} > ./start-date.txt`, (error, stdout, stderr) => {
-		if (error){
-			console.error(`exec error: ${error}`);
-			res.status(500).send();}
-		if (stderr){
-			console.error(`stderr: ${stderr}`)
-			res.status(500).send()}
-		res.type('json').send({date: date});
-	})
-  }
-);
+//Might be able to delete these three lines
+app.ws('/', (ws, req) => {
+	});
+
+//Get websocket server
+var wSs = expressWs.getWss();
 
 //PUT data request
 app.put('/store-data', (req, res, next) => {
+	console.log('store-data request received');
 	let data = new Shroom({
 		name: req.body.name,
 		stage: req.body.stage,
@@ -49,11 +55,22 @@ app.put('/store-data', (req, res, next) => {
 		pinningDate: req.body.pinningDate,
 		heater: req.body.heater
 	});
-	data.save((err, data) => {
-			if (err) {console.error(err)}
-			else {res.status(200).send()}
-		})
-
+	//Look up colony by name and avoid storing new one if already exists.
+	Shroom.findOne({name: req.body.name})
+	.exec(function(err, result) {
+		if (result) {
+			res.status(400).send(`Colony named ${req.body.name} already exists`);
+		}
+		else {
+			data.save((err, data) => {
+				if (err) {
+					console.error(err);
+					res.status(500).send(err);
+				}
+				else {res.status(200).send()}
+			})
+		}
+	});
 });
 
 
@@ -63,43 +80,65 @@ app.put('/store-pinning-date', (req, res, next) => {
 	exec(`echo ${date} > ./pinning-date.txt`, (error, stdout, stderr) => {
 		if (error){
 			console.error(`exec error: ${error}`);
-			res.status(500).send();}
-		if (stderr){
+			res.status(500).send(error);
+		} else if (stderr){
 			console.error(`stderr: ${stderr}`)
-			res.status(500).send()}
-		res.type('json').send({date: date});
+			res.status(500).send(stderr)
+		} else {
+			res.type('json').send({date: date});
+		}
 	})
 });
 
 //PUT name request
 app.put('/store-name', (req, res, next) => {
 	let name = req.query.name;
-	exec(`echo ${name} > ./name.txt`, (error, stdout, stderr) => {
+	Shroom.findOne({id: req.query._id}).exec((err, result) => {
+		if (err) {
+			res.status(404).send(err);
+		} else {
+			result.name = name;
+			result.save();
+			res.send('Name updated');
+		}	
+	});
+});
+
+//PUT temperature request (from ESP8266)
+app.put('/temp', (req, res, next) => {
+	let data = req.query.temp;
+	exec(`echo ${data} >> ./temp_log.txt`, (error, stdout, stderr) => {
 		if (error){
 			console.error(`exec error: ${error}`);
-			res.status(500).send();}
-		if (stderr){
+			res.status(500).send(error);
+		} else if (stderr){
 			console.error(`stderr: ${stderr}`)
-			res.status(500).send()}
-		res.type('json').send({name: name});
-	})
-})
+			res.status(500).send(stderr)
+		} else {
+			res.send();
+		}
+	});
+	wSs.clients.forEach(client => client.send(JSON.stringify({temp: data})));
+});
 
-//GET starting date request
-app.get('/start-date', (req, res, next) => {
-	fs.readFile('./start-date.txt', 'utf8', (err, data) => {
-		if(err) {
-				res.status(500).send(err.mesage);
-		};
-		let startDate = data;
-		fs.readFile('./pinning-date.txt', 'utf8', (err, data) => {
-			if(err) {
-					res.status(500).send(err.message);
-			};
-			let pinningDate = data;
-			res.type('json').send({startDate: startDate, pinningDate: pinningDate})
-			});
-	})
+
+//PUT heater state request (from ESP8266)
+app.put('/heater', (req, res, next) => {
+	data = {heater: req.query.heater};
+	wSs.clients.forEach(client => client.send(JSON.stringify(data)));
+	res.send()
+});
+
+//GET data request
+app.get('/data', (req, res, next) => {
+	Shroom.find()
+	.exec((err, result) => {
+		if (err) {
+			res.status(404).send('No colonies found');
+		} else {
+			res.send(result[0])
+		}
+	});
 });
 
 //GET temperature request
@@ -145,3 +184,12 @@ app.delete('/reset', (req, res, next) => {
 
 app.listen(port, () => console.log(`Server listening on port ${port}`));
 
+//Websocket config
+const wSServer = new ws.Server({ server: app });
+wSServer.on('connection', socket => {
+	socket.on('open', () => {
+		console.log('Socket opened');
+		socket.send('Socket opened');
+	});
+	socket.on('message', data => console.log(String(data)));
+});
