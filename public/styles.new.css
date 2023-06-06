@@ -1,0 +1,188 @@
+* {
+	margin: 0;
+	font-family: 'Caveat';
+}
+
+html {
+	background-color: black !important;
+	font-size: 32px;
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background-color: inherit;
+}
+
+p {
+	margin-bottom: unset;
+}
+
+#app {
+	color: white;
+	height: 95%;
+	width: 90vw;
+	max-height: 1200px;
+	max-width: 400px;
+}
+
+#container {
+	text-align: center;
+}
+
+#main {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
+	align-items: center;
+	position: relative;
+	bottom: 1rem;
+	max-width: 400px;
+}
+
+#header {
+	margin-top: 5px;
+	display: flex;
+	justify-content: space-evenly;
+}
+
+#pb-phantom {
+	position: relative;
+	bottom: 1rem;
+	z-index: 1;
+	height: 1rem;
+	width: 1.63rem;
+}
+
+#plus-btn {
+	background-color: black;
+	position: relative;
+	z-index: 3;
+	height: 1rem;
+	width: 1.63rem;
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+
+}
+
+.svgs {
+	fill: white;
+}
+
+h1, h2 {
+	text-align: center;
+	font-weight: 500;
+	}
+
+h1 {
+	font-size: 1.8rem;
+	}
+h2 {
+	font-size: 1.4rem;
+	margin: 5px 0px 10px 0px;
+}
+
+#h00 {
+	position: relative;
+	z-index: 2;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#h01 {
+	background: 
+		linear-gradient(black 98%, rgba(0,0,0,0) 2%),
+		linear-gradient(250deg, rgba(204,0,255,1), rgba(204,0,255,0) 70.71%),
+    linear-gradient(120deg, rgba(166,255,0,1), rgba(166,255,0,0) 70.71%),
+		linear-gradient(15deg, rgb(60, 215, 253), rgb(61, 212, 250) 70.71%);
+		
+	/*background: 
+		linear-gradient(217deg, rgba(204, 0, 255, 1), rgba(204, 0, 255, 0) 70.71%),
+    linear-gradient(127deg, rgba(166, 255, 0, 1), rgba(145, 255, 0, 0) 70.71%),
+		linear-gradient(336deg, rgba(0, 204, 255, 1), rgba(0, 204, 255, 0) 70.71%);*/
+	position: relative;
+	top: -1.5rem;
+	z-index: 1;
+	height: 1.9rem;
+	text-align: center;
+}
+#times {
+	display: flex;
+	justify-content: space-around;
+	width: 100%;
+}
+#thermometer {
+	text-align: center;
+}
+
+#gauge-div {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-top: 5px;
+	margin-bottom: 25px;
+
+	width: 250px;
+	height: 250px;
+}
+
+#led {
+	height: 6px;
+	width: 6px;
+	border-radius: 35%;
+	position: relative;
+	left: calc(50% - 3px);
+	bottom: 110px;
+	cursor: pointer;
+}
+#buttons {
+	display: flex;
+	justify-content: space-around;
+	position: relative;
+	z-index: 2;
+	width: 100%;
+	}
+#reset-button, #next-stage-button, #start-button {
+	background-color: black;
+	cursor: pointer;
+}
+
+#buttons-phantom {
+	display: flex;
+	justify-content: space-around;
+	position: relative;
+	bottom: 1.53rem;
+	z-index: 0;
+	width: 100%;
+}
+#rb-phantom, #ns-phantom, #sb-phantom, #pb-phantom {
+	background:
+		linear-gradient(250deg, rgba(204,0,255,1), rgba(204,0,255,0) 70.71%),
+		linear-gradient(120deg, rgba(166,255,0,1), rgba(166,255,0,0) 70.71%),
+ 		linear-gradient(15deg, rgb(60, 215, 253), rgb(61, 212, 250) 70.71%);
+}
+
+.button {
+	border-radius: 5px;
+	text-align: center;
+	padding: 0px 5px 0px 2px;
+}
+
+p {
+	text-align: center;
+}
+
+
+.invisible {display: none}
+.phantom {visibility: hidden}
+
+/*=== Up to 1020px width, take 95% screen width max ===
+@media only screen and (max-width: 1020px) {
+	#app {
+		max-width: 95%;
+	}
+}
+*/

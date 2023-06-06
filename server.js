@@ -1,3 +1,7 @@
+//TO DO
+//Rewrite /reset
+
+
 const express = require('express');
 const ws = require('ws');
 const cors = require('cors');
@@ -7,11 +11,12 @@ const exec = require('child_process').exec;
 const mongoose = require('mongoose');
 
 const shroomSchema = new mongoose.Schema({
+	id: Number,
 	name: String,
 	stage: String,
 	temperature: Number,
-	startDate: Date,
-	pinningDate: Date,
+	startDate: Number,
+	pinningDate: Number,
 	heater: Boolean,
 });
 
@@ -28,6 +33,7 @@ mongoose.connect(myDB, {
 
 //Server config
 var app = express();
+//Set env variables from shell with: $ export myVar=value
 const port = process.env.PORT || 4001;
 
 app.use(express.static('public'));
@@ -67,7 +73,7 @@ app.put('/store-data', (req, res, next) => {
 					console.error(err);
 					res.status(500).send(err);
 				}
-				else {res.status(200).send()}
+				else {res.status(200).send(data)}
 			})
 		}
 	});
@@ -141,26 +147,6 @@ app.get('/data', (req, res, next) => {
 	});
 });
 
-//GET temperature request
-app.get('/temperature', (req, res, next) => {
-	exec('tail -n1 temp_log.txt', (error, stdout, stderr) => {
-		if (error){
-			console.error(`exec error: ${error}`);
-			res.status(500).send();}
-		if (stderr){
-			console.error(`stderr: ${stderr}`)
-			res.status(500).send()}
-		res.send({temp: stdout})
-	})
-});
-
-//GET heater status request
-app.get('/get-led', (req, res, next) => {
-	fs.readFile('heater-status', 'utf8', (err, data) => {
-		if (err) {res.status(500).send(err.message)}
-		res.type('json').send({state: data})
-	})
-});
 
 //RESTART request
 app.delete('/reset', (req, res, next) => {
